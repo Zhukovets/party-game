@@ -41,22 +41,23 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; }
+  html { scroll-padding-bottom: 150px; }
+  html, body { margin: 0; padding: 0; }
   body {
     background: var(--paper);
     color: var(--ink);
     font-family: var(--font-body);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     justify-content: center;
   }
   .app {
     width: 100%;
     max-width: 440px;
-    min-height: 100vh;
-    padding: 28px 20px 40px;
+    min-height: 100dvh;
+    padding: 28px 20px 130px;
     display: flex;
     flex-direction: column;
   }
@@ -181,7 +182,25 @@
   .opt-btn.reveal-correct { border-color: var(--ok); color: var(--ok); }
   .opt-btn.dim { opacity: 0.45; }
 
-  .next-wrap { min-height: 48px; display: flex; }
+  .bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    background: var(--paper);
+    border-top: 1px solid var(--line);
+    padding: 12px 20px calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+  }
+  .bottom-bar-inner {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
   .btn {
     font-family: var(--font-body);
     font-weight: 700;
@@ -219,7 +238,7 @@
   .miss-list .miss-fact { color: var(--ink-soft); }
   .miss-list .miss-answer { color: var(--ok); font-weight: 700; margin-top: 3px; }
 
-  .result-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+  .result-actions { display: flex; flex-direction: column; gap: 10px; }
 
   footer.note { margin-top: 28px; text-align: center; color: var(--muted); font-size: 12px; }
 
@@ -260,10 +279,13 @@
 
     <div class="options-grid" id="optionsGrid"></div>
 
-    <div class="next-wrap">
+  </section>
+
+  <div class="bottom-bar" id="gameBottomBar" style="display:none;">
+    <div class="bottom-bar-inner">
       <button class="btn btn-primary" id="nextBtn" style="visibility:hidden;">Следующая карточка</button>
     </div>
-  </section>
+  </div>
 
   <!-- SCREEN 3: results -->
   <section class="screen" id="screen-results">
@@ -274,11 +296,14 @@
       <div class="score-label">угадано с первой попытки</div>
     </div>
     <ul class="miss-list" id="missList"></ul>
-    <div class="result-actions">
+  </section>
+
+  <div class="bottom-bar" id="resultsBottomBar" style="display:none;">
+    <div class="bottom-bar-inner result-actions">
       <button class="btn btn-primary" id="playAgainBtn">Играть ещё раз</button>
       <button class="btn btn-ghost" id="changePlayerBtn">Сменить игрока</button>
     </div>
-  </section>
+  </div>
 
 </div>
 
@@ -306,8 +331,12 @@
     game: document.getElementById("screen-game"),
     results: document.getElementById("screen-results")
   };
+  var gameBottomBar = document.getElementById("gameBottomBar");
+  var resultsBottomBar = document.getElementById("resultsBottomBar");
   function showScreen(name) {
     Object.keys(screens).forEach(function (k) { screens[k].classList.toggle("active", k === name); });
+    gameBottomBar.style.display = (name === "game") ? "flex" : "none";
+    resultsBottomBar.style.display = (name === "results") ? "flex" : "none";
   }
 
   function shuffle(arr) {
