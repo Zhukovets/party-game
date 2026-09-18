@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Угадай, чей это факт</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #221F2E;
+    --ink-soft: #4A4558;
+    --muted: #7A7488;
+    --paper: #FBF9F5;
+    --paper-dim: #F1EDE5;
+    --line: #DDD6C8;
+    --accent: #C6406F;
+    --accent-ink: #FFFFFF;
+    --gold: #D99B34;
+    --ok: #3E7A57;
+    --ok-bg: #E4F0E8;
+    --danger: #B23A3A;
+    --danger-bg: #F6E4E2;
+    --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #F2EFE9; --ink-soft: #D8D3E0; --muted: #9B94A8;
+      --paper: #26222F; --paper-dim: #2E2A38; --line: #423C4E;
+      --accent: #E0578A; --gold: #E8B156; --accent-ink: #1B1725;
+      --ok: #6FBF8F; --ok-bg: #23342A; --danger: #E0837A; --danger-bg: #3A2624;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #F2EFE9; --ink-soft: #D8D3E0; --muted: #9B94A8;
+    --paper: #26222F; --paper-dim: #2E2A38; --line: #423C4E;
+    --accent: #E0578A; --gold: #E8B156; --accent-ink: #1B1725;
+    --ok: #6FBF8F; --ok-bg: #23342A; --danger: #E0837A; --danger-bg: #3A2624;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+  }
+  .app {
+    width: 100%;
+    max-width: 440px;
+    min-height: 100vh;
+    padding: 28px 20px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  h1.brand {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 26px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  .lede { color: var(--muted); font-size: 14.5px; margin: 0 0 28px; max-width: 40ch; }
+
+  /* ---- Name select ---- */
+  .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .name-btn {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+    background: var(--paper-dim);
+    border: 1px dashed var(--line);
+    border-radius: 10px;
+    padding: 16px 10px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .name-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .name-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- Game screen ---- */
+  .game-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .game-topbar .player-name { font-weight: 600; color: var(--ink); }
+  .switch-link {
+    background: none; border: none; color: var(--muted);
+    font-size: 13px; text-decoration: underline; cursor: pointer; padding: 4px;
+  }
+  .switch-link:hover { color: var(--accent); }
+
+  .progress-bar { height: 4px; background: var(--paper-dim); border-radius: 2px; overflow: hidden; margin-bottom: 26px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+  @media (prefers-reduced-motion: reduce) { .progress-fill { transition: none; } }
+
+  .stack {
+    position: relative;
+    height: 240px;
+    margin-bottom: 22px;
+  }
+  .stack .deck-card {
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--paper-dim);
+  }
+  .stack .peek-2 { transform: translateY(14px) scale(0.94) rotate(-2deg); opacity: 0.5; }
+  .stack .peek-1 { transform: translateY(7px) scale(0.97) rotate(1.5deg); opacity: 0.75; }
+  .stack .main-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 26px 22px;
+    background: var(--paper);
+    box-shadow: 0 10px 24px rgba(34,31,46,0.10);
+    transition: transform 0.28s ease, opacity 0.28s ease;
+  }
+  @media (prefers-reduced-motion: reduce) { .stack .main-card { transition: none; } }
+  .stack .main-card.answered.correct { border-color: var(--ok); background: var(--ok-bg); }
+  .stack .main-card.answered.wrong { border-color: var(--danger); background: var(--danger-bg); }
+  .stack .main-card.leaving { transform: translateX(120%) rotate(8deg); opacity: 0; }
+  .fact-text {
+    font-family: var(--font-display);
+    font-size: clamp(19px, 5vw, 23px);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .reveal-name {
+    margin-top: 14px;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .reveal-name.correct { color: var(--ok); }
+  .reveal-name.wrong { color: var(--danger); }
+
+  .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 20px; }
+  .opt-btn {
+    font-family: var(--font-body);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 13px 8px;
+    cursor: pointer;
+  }
+  .opt-btn:hover:not(:disabled) { border-color: var(--accent); }
+  .opt-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .opt-btn:disabled { cursor: default; }
+  .opt-btn.chosen-correct { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+  .opt-btn.chosen-wrong { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+  .opt-btn.reveal-correct { border-color: var(--ok); color: var(--ok); }
+  .opt-btn.dim { opacity: 0.45; }
+
+  .next-wrap { min-height: 48px; display: flex; }
+  .btn {
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 9px;
+    padding: 13px 20px;
+    cursor: pointer;
+    border: none;
+    width: 100%;
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-ink); }
+  .btn-primary:hover { filter: brightness(1.06); }
+  .btn-primary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:hover { background: var(--paper-dim); }
+
+  /* ---- Results ---- */
+  .score-block { text-align: center; margin: 18px 0 26px; }
+  .score-number {
+    font-family: var(--font-display);
+    font-size: 56px;
+    font-weight: 600;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .score-label { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
+
+  .miss-list { list-style: none; padding: 0; margin: 0 0 26px; display: flex; flex-direction: column; gap: 8px; }
+  .miss-list li {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13.5px;
+  }
+  .miss-list .miss-fact { color: var(--ink-soft); }
+  .miss-list .miss-answer { color: var(--ok); font-weight: 700; margin-top: 3px; }
+
+  .result-actions { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+
+  footer.note { margin-top: 28px; text-align: center; color: var(--muted); font-size: 12px; }
+
+  @media (max-width: 360px) {
+    .options-grid { grid-template-columns: 1fr; }
+    .name-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SCREEN 1: choose player -->
+  <section class="screen active" id="screen-select">
+    <h1 class="brand">Угадай, чей это факт</h1>
+    <p class="lede">Выбери своё имя — и получишь колоду карточек с фактами про остальных гостей.</p>
+    <div class="name-grid" id="nameGrid"></div>
+  </section>
+
+  <!-- SCREEN 2: card deck -->
+  <section class="screen" id="screen-game">
+    <div class="game-topbar">
+      <span>Играет: <span class="player-name" id="playerNameLabel"></span></span>
+      <button class="switch-link" id="switchPlayerBtn" type="button">Сменить игрока</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div class="stack" id="stack">
+      <div class="deck-card peek-2"></div>
+      <div class="deck-card peek-1"></div>
+      <div class="deck-card main-card" id="mainCard">
+        <div>
+          <div class="fact-text" id="factText"></div>
+          <div class="reveal-name" id="revealName"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="options-grid" id="optionsGrid"></div>
+
+    <div class="next-wrap">
+      <button class="btn btn-primary" id="nextBtn" style="visibility:hidden;">Следующая карточка</button>
+    </div>
+  </section>
+
+  <!-- SCREEN 3: results -->
+  <section class="screen" id="screen-results">
+    <h1 class="brand">Готово!</h1>
+    <p class="lede" id="resultsLede"></p>
+    <div class="score-block">
+      <div class="score-number" id="scoreNumber">0/0</div>
+      <div class="score-label">фактов угадано верно</div>
+    </div>
+    <ul class="miss-list" id="missList"></ul>
+    <div class="result-actions">
+      <button class="btn btn-primary" id="playAgainBtn">Играть ещё раз</button>
+      <button class="btn btn-ghost" id="changePlayerBtn">Сменить игрока</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var PARTICIPANTS = [
+    { id: "p1", name: "Ира",    facts: ["Вяжет всё, что можно связать — от свитеров до шапок", "Обожает парфюмерию и разбирается в ароматах"] },
+    { id: "p2", name: "Кирилл", facts: ["Профессионально готовит «Бабку»", "Может научить кого угодно кататься на лыжах"] },
+    { id: "p3", name: "Вита",   facts: ["Успел(а) поработать в Burger King", "Жил(а) во Вроцлаве и до сих пор в него влюблён(а)"] },
+    { id: "p4", name: "Настя",  facts: ["Мастерски готовит, особенно десерты", "В семье был свой дворецкий"] },
+    { id: "p5", name: "Саша",   facts: ["Работал(а) сторожем в школе", "Водитель троллейбуса подвозил его/её прямо до дома"] },
+    { id: "p6", name: "Юра",    facts: ["Катается на скейтборде и занимается воркаутом на турниках", "Болеет за «Ливерпуль»"] },
+    { id: "p7", name: "Света",  facts: ["Её собачка носит имя чайного растения", "Легко подтягивается и садится на шпагат"] },
+    { id: "p8", name: "Олег",   facts: ["Покорял горные тропы Непала", "Выращивает свои помидоры на грядке"] }
+  ];
+
+  var state = { playerId: null, deck: [], index: 0, correctCount: 0, misses: [], answered: false };
+
+  var screens = {
+    select: document.getElementById("screen-select"),
+    game: document.getElementById("screen-game"),
+    results: document.getElementById("screen-results")
+  };
+  function showScreen(name) {
+    Object.keys(screens).forEach(function (k) { screens[k].classList.toggle("active", k === name); });
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // ---- Screen 1: name grid ----
+  var nameGrid = document.getElementById("nameGrid");
+  function renderNameGrid() {
+    nameGrid.innerHTML = "";
+    PARTICIPANTS.forEach(function (p) {
+      var btn = document.createElement("button");
+      btn.className = "name-btn";
+      btn.type = "button";
+      btn.textContent = p.name;
+      btn.addEventListener("click", function () { startGame(p.id); });
+      nameGrid.appendChild(btn);
+    });
+  }
+
+  function startGame(playerId) {
+    var deck = [];
+    PARTICIPANTS.forEach(function (p) {
+      if (p.id === playerId) return;
+      p.facts.forEach(function (fact) {
+        deck.push({ fact: fact, personId: p.id, personName: p.name });
+      });
+    });
+    state.playerId = playerId;
+    state.deck = shuffle(deck);
+    state.index = 0;
+    state.correctCount = 0;
+    state.misses = [];
+    state.answered = false;
+
+    var player = PARTICIPANTS.filter(function (p) { return p.id === playerId; })[0];
+    document.getElementById("playerNameLabel").textContent = player.name;
+
+    showScreen("game");
+    renderCard();
+  }
+
+  // ---- Screen 2: card ----
+  var mainCard = document.getElementById("mainCard");
+  var factText = document.getElementById("factText");
+  var revealName = document.getElementById("revealName");
+  var optionsGrid = document.getElementById("optionsGrid");
+  var nextBtn = document.getElementById("nextBtn");
+  var progressFill = document.getElementById("progressFill");
+
+  function renderCard() {
+    var total = state.deck.length;
+    var item = state.deck[state.index];
+
+    progressFill.style.width = (state.index / total * 100) + "%";
+    mainCard.classList.remove("answered", "correct", "wrong", "leaving");
+    revealName.textContent = "";
+    revealName.className = "reveal-name";
+    factText.textContent = item.fact;
+    nextBtn.style.visibility = "hidden";
+    state.answered = false;
+
+    optionsGrid.innerHTML = "";
+    var options = shuffle(PARTICIPANTS);
+
+    options.forEach(function (opt) {
+      var btn = document.createElement("button");
+      btn.className = "opt-btn";
+      btn.type = "button";
+      btn.textContent = opt.name;
+      btn.addEventListener("click", function () { chooseAnswer(opt, btn); });
+      optionsGrid.appendChild(btn);
+    });
+  }
+
+  function chooseAnswer(chosenPerson, chosenBtn) {
+    if (state.answered) return;
+    state.answered = true;
+    var item = state.deck[state.index];
+    var isCorrect = chosenPerson.id === item.personId;
+
+    if (isCorrect) {
+      state.correctCount++;
+      mainCard.classList.add("answered", "correct");
+      revealName.textContent = "Верно — это " + item.personName;
+      revealName.className = "reveal-name correct";
+      chosenBtn.classList.add("chosen-correct");
+    } else {
+      state.misses.push({ fact: item.fact, personName: item.personName });
+      mainCard.classList.add("answered", "wrong");
+      revealName.textContent = "Это был(а) " + item.personName;
+      revealName.className = "reveal-name wrong";
+      chosenBtn.classList.add("chosen-wrong");
+    }
+
+    Array.prototype.forEach.call(optionsGrid.children, function (btn) {
+      btn.disabled = true;
+      var label = btn.textContent;
+      if (label === item.personName && !isCorrect) btn.classList.add("reveal-correct");
+      if (btn !== chosenBtn) btn.classList.add("dim");
+    });
+
+    nextBtn.style.visibility = "visible";
+    nextBtn.textContent = (state.index === state.deck.length - 1) ? "Посмотреть результат" : "Следующая карточка";
+  }
+
+  nextBtn.addEventListener("click", function () {
+    if (!state.answered) return;
+    if (state.index === state.deck.length - 1) {
+      showResults();
+      return;
+    }
+    mainCard.classList.add("leaving");
+    setTimeout(function () {
+      state.index++;
+      renderCard();
+    }, 220);
+  });
+
+  document.getElementById("switchPlayerBtn").addEventListener("click", function () {
+    showScreen("select");
+  });
+
+  // ---- Screen 3: results ----
+  function showResults() {
+    var total = state.deck.length;
+    document.getElementById("scoreNumber").textContent = state.correctCount + "/" + total;
+    var pct = Math.round((state.correctCount / total) * 100);
+    var lede = document.getElementById("resultsLede");
+    if (pct === 100) lede.textContent = "Все факты угаданы — вы точно давно всех знаете!";
+    else if (pct >= 70) lede.textContent = "Отличный результат для одного вечера.";
+    else lede.textContent = "Теперь есть повод расспросить остальных подробнее.";
+
+    var missList = document.getElementById("missList");
+    missList.innerHTML = "";
+    if (state.misses.length === 0) {
+      var li = document.createElement("li");
+      li.textContent = "Ни одной ошибки — так держать!";
+      missList.appendChild(li);
+    } else {
+      state.misses.forEach(function (m) {
+        var li = document.createElement("li");
+        li.innerHTML = "<div class='miss-fact'>" + escapeHtml(m.fact) + "</div><div class='miss-answer'>" + escapeHtml(m.personName) + "</div>";
+        missList.appendChild(li);
+      });
+    }
+    showScreen("results");
+  }
+
+  document.getElementById("playAgainBtn").addEventListener("click", function () {
+    startGame(state.playerId);
+  });
+  document.getElementById("changePlayerBtn").addEventListener("click", function () {
+    showScreen("select");
+  });
+
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.textContent = str == null ? "" : str;
+    return div.innerHTML;
+  }
+
+  renderNameGrid();
+})();
+</script>
+</body>
+</html>
