@@ -136,7 +136,15 @@
   }
   @media (prefers-reduced-motion: reduce) { .stack .main-card { transition: none; } }
   .stack .main-card.answered.correct { border-color: var(--ok); background: var(--ok-bg); }
-  .stack .main-card.answered.wrong { border-color: var(--danger); background: var(--danger-bg); }
+  .stack .main-card.wrong-flash { border-color: var(--danger); background: var(--danger-bg); animation: shakeX 0.35s ease; }
+  @keyframes shakeX {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+  @media (prefers-reduced-motion: reduce) { .stack .main-card.wrong-flash { animation: none; } }
   .stack .main-card.leaving { transform: translateX(120%) rotate(8deg); opacity: 0; }
   .fact-text {
     font-family: var(--font-display);
@@ -263,7 +271,7 @@
     <p class="lede" id="resultsLede"></p>
     <div class="score-block">
       <div class="score-number" id="scoreNumber">0/0</div>
-      <div class="score-label">фактов угадано верно</div>
+      <div class="score-label">угадано с первой попытки</div>
     </div>
     <ul class="miss-list" id="missList"></ul>
     <div class="result-actions">
@@ -283,13 +291,15 @@
     { id: "p2", name: "Кирилл", facts: ["Профессионально готовит «Бабку»", "Может научить кого угодно кататься на лыжах"] },
     { id: "p3", name: "Вита",   facts: ["Успел(а) поработать в Burger King", "Жил(а) во Вроцлаве и до сих пор в него влюблён(а)"] },
     { id: "p4", name: "Настя",  facts: ["Мастерски готовит, особенно десерты", "В семье был свой дворецкий"] },
-    { id: "p5", name: "Саша",   facts: ["Работал(а) сторожем в школе", "Водитель троллейбуса подвозил его/её прямо до дома"] },
+    { id: "p5", name: "Саша К.", facts: ["Работал(а) сторожем в школе", "Водитель троллейбуса подвозил его/её прямо до дома"] },
     { id: "p6", name: "Юра",    facts: ["Катается на скейтборде и занимается воркаутом на турниках", "Болеет за «Ливерпуль»"] },
     { id: "p7", name: "Света",  facts: ["Её собачка носит имя чайного растения", "Легко подтягивается и садится на шпагат"] },
-    { id: "p8", name: "Олег",   facts: ["Покорял горные тропы Непала", "Выращивает свои помидоры на грядке"] }
+    { id: "p8", name: "Олег",   facts: ["Покорял горные тропы Непала", "Выращивает свои помидоры на грядке"] },
+    { id: "p9", name: "Вера",   facts: ["Почти лично знаком(а) с Джигурдой", "Побывал(а) на Ниагарском водопаде"] },
+    { id: "p10", name: "Саша Ж", facts: ["Похититель рецептов: попробовал(а) вкусное в гостях — уже записал(а) рецепт себе", "Выиграл(а) настоящую свинью на деревенской ярмарке"] }
   ];
 
-  var state = { playerId: null, deck: [], index: 0, correctCount: 0, misses: [], answered: false };
+  var state = { playerId: null, deck: [], index: 0, correctCount: 0, misses: [], answered: false, cardHadMistake: false };
 
   var screens = {
     select: document.getElementById("screen-select"),
@@ -358,12 +368,13 @@
     var item = state.deck[state.index];
 
     progressFill.style.width = (state.index / total * 100) + "%";
-    mainCard.classList.remove("answered", "correct", "wrong", "leaving");
+    mainCard.classList.remove("answered", "correct", "wrong-flash", "leaving");
     revealName.textContent = "";
     revealName.className = "reveal-name";
     factText.textContent = item.fact;
     nextBtn.style.visibility = "hidden";
     state.answered = false;
+    state.cardHadMistake = false;
 
     optionsGrid.innerHTML = "";
     var options = shuffle(PARTICIPANTS);
@@ -380,33 +391,39 @@
 
   function chooseAnswer(chosenPerson, chosenBtn) {
     if (state.answered) return;
-    state.answered = true;
     var item = state.deck[state.index];
     var isCorrect = chosenPerson.id === item.personId;
 
     if (isCorrect) {
-      state.correctCount++;
+      state.answered = true;
+      if (state.cardHadMistake) {
+        state.misses.push({ fact: item.fact, personName: item.personName });
+      } else {
+        state.correctCount++;
+      }
       mainCard.classList.add("answered", "correct");
       revealName.textContent = "Верно — это " + item.personName;
       revealName.className = "reveal-name correct";
       chosenBtn.classList.add("chosen-correct");
+
+      Array.prototype.forEach.call(optionsGrid.children, function (btn) {
+        btn.disabled = true;
+        if (btn !== chosenBtn && !btn.classList.contains("chosen-wrong")) btn.classList.add("dim");
+      });
+
+      nextBtn.style.visibility = "visible";
+      nextBtn.textContent = (state.index === state.deck.length - 1) ? "Посмотреть результат" : "Следующая карточка";
     } else {
-      state.misses.push({ fact: item.fact, personName: item.personName });
-      mainCard.classList.add("answered", "wrong");
-      revealName.textContent = "Это был(а) " + item.personName;
-      revealName.className = "reveal-name wrong";
+      state.cardHadMistake = true;
       chosenBtn.classList.add("chosen-wrong");
+      chosenBtn.disabled = true;
+
+      mainCard.classList.remove("wrong-flash");
+      // force reflow so the animation can replay on repeated wrong guesses
+      void mainCard.offsetWidth;
+      mainCard.classList.add("wrong-flash");
+      setTimeout(function () { mainCard.classList.remove("wrong-flash"); }, 380);
     }
-
-    Array.prototype.forEach.call(optionsGrid.children, function (btn) {
-      btn.disabled = true;
-      var label = btn.textContent;
-      if (label === item.personName && !isCorrect) btn.classList.add("reveal-correct");
-      if (btn !== chosenBtn) btn.classList.add("dim");
-    });
-
-    nextBtn.style.visibility = "visible";
-    nextBtn.textContent = (state.index === state.deck.length - 1) ? "Посмотреть результат" : "Следующая карточка";
   }
 
   nextBtn.addEventListener("click", function () {
